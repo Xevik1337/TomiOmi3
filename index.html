@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Счётчик напитков</title>
+    <style>
+        @font-face {
+            font-family: 'Junegull';
+            src: url('Junegull.ttf') format('truetype');
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            width: 100vw;
+            font-family: 'Junegull', sans-serif;
+            background-color: #F4A6D7;
+            overflow: hidden;
+            transition: all 0.5s ease;
+        }
+        h1#mainCounter {
+            font-size: 30vw;
+            margin: 0;
+            width: 100%;
+            text-align: center;
+            color: #0047BB;
+            -webkit-text-stroke: 4px white;
+            text-stroke: 4px white;
+            font-weight: normal;
+        }
+        button#clickButton {
+            font-size: min(6vw, 3rem);
+            padding: min(5vw, 20px) min(10vw, 40px);
+            cursor: pointer;
+            border: none;
+            background-color: #0047BB;
+            color: white;
+            border-radius: 15px;
+            width: auto;
+            height: auto;
+            max-width: 80vw;
+            max-height: 15vh;
+            font-family: 'Junegull', sans-serif;
+            font-weight: normal;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+        }
+        .full-button {
+            width: 70vw;
+            height: 20vh;
+            font-size: min(8vw, 4rem);
+            padding: min(4vw, 30px);
+            border-radius: 10px;
+        }
+        @media (max-width: 1024px) {
+            .full-button {
+                width: 60vw;
+                height: 15vh;
+                font-size: min(7vw, 3rem);
+            }
+        }
+        @media (max-width: 768px) {
+            .full-button {
+                width: 55vw;
+                height: 12vh;
+                font-size: min(6vw, 2.5rem);
+            }
+        }
+        @media (max-width: 480px) {
+            .full-button {
+                width: 50vw;
+                height: 10vh;
+                font-size: min(5vw, 2rem);
+            }
+        }
+        p { 
+            font-size: 1.5rem; 
+            color: #0047BB; 
+            font-family: 'Junegull', sans-serif; 
+            text-align: center; 
+            margin-top: 10px; 
+        }
+        #editButton {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            font-size: 1rem;
+            padding: 10px;
+            background-color: transparent;
+            color: #0047BB;
+            border: none;
+            opacity: 0.5;
+            font-family: 'Junegull', sans-serif;
+            cursor: pointer;
+        }
+        #editButton:hover { opacity: 1; }
+        details summary {
+            outline: none;
+            cursor: pointer;
+            list-style: none; /* Убираем маркер (стрелку) */
+        }
+        details summary::-webkit-details-marker {
+            display: none; /* Убираем стрелку в WebKit-браузерах */
+        }
+        details[open] summary {
+            opacity: 0.7;
+        }
+        details menu {
+            position: absolute;
+            top: 100%;
+            right: 0;
+            background-color: #fff;
+            border: 1px solid #0047BB;
+            border-radius: 5px;
+            padding: 5px;
+            margin: 0;
+            list-style: none;
+        }
+        details menu button {
+            display: block;
+            width: 100%;
+            padding: 5px 10px;
+            background: none;
+            border: none;
+            color: #0047BB;
+            text-align: left;
+            font-family: 'Junegull', sans-serif;
+            cursor: pointer;
+        }
+        details menu button:hover {
+            background-color: rgba(0, 71, 187, 0.1);
+        }
+        .hidden { opacity: 0; height: 0; margin: 0; pointer-events: none; }
+        .expanded { font-size: 40vw; width: 100%; height: 100vh; display: flex; align-items: center; justify-content: center; }
+        .combined-mode h1#mainCounter {
+            font-size: 20vw; /* Уменьшаем счётчик для совместного отображения */
+            margin-bottom: 20px;
+        }
+        .combined-mode button#clickButton {
+            font-size: min(5vw, 2rem); /* Уменьшаем кнопку */
+            padding: min(4vw, 15px) min(8vw, 30px);
+        }
+        #buttonCounter {
+            font-size: min(16vw, 16rem); /* Размер соответствует кнопке в режиме full-button */
+            color: #0047BB;
+            -webkit-text-stroke: 2px white;
+            text-stroke: 2px white;
+            margin-bottom: 20px;
+            width: 70vw;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <h1 id="mainCounter">500</h1>
+    <h1 id="buttonCounter" class="hidden">500</h1>
+    <button id="clickButton">Забрать напиток</button>
+    <p id="message"></p>
+    <details id="editButton">
+        <summary>ED</summary>
+        <menu>
+            <button id="editValue">Редактировать значение</button>
+            <button id="counterMode">Режим счётчика</button>
+            <button id="buttonMode">Режим кнопки</button>
+            <button id="resetMode">Сбросить</button>
+        </menu>
+    </details>
+
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js';
+        import { getDatabase, ref, set, onValue } from 'https://www.gstatic.com/firebasejs/9.6.1/firebase-database.js';
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyABGFrmc4SRwuuQIkdEWhydg-ru19O0ROk",
+            authDomain: "tomi-348c8.firebaseapp.com",
+            databaseURL: "https://tomi-348c8-default-rtdb.europe-west1.firebasedatabase.app",
+            projectId: "tomi-348c8",
+            storageBucket: "tomi-348c8.firebasestorage.app",
+            messagingSenderId: "805956552785",
+            appId: "1:805956552785:web:11e9369f282abb25081070",
+            measurementId: "G-6F31PYWZ4H"
+        };
+
+        let app, db, counterRef;
+        let firebaseInitialized = false;
+        try {
+            app = initializeApp(firebaseConfig);
+            db = getDatabase(app);
+            counterRef = ref(db, 'counter');
+            firebaseInitialized = true;
+            console.log("Firebase успешно инициализирован");
+        } catch (error) {
+            console.error("Ошибка инициализации Firebase:", error);
+            alert("Не удалось подключиться к Firebase. Кнопки будут работать локально.");
+        }
+
+        let count = 500;
+        let isEditMode = false;
+        const mainCounterEl = document.getElementById('mainCounter');
+        const buttonCounterEl = document.getElementById('buttonCounter');
+        const buttonEl = document.getElementById('clickButton');
+        const messageEl = document.getElementById('message');
+        const editButtonEl = document.getElementById('editButton');
+        const editValueButton = document.getElementById('editValue');
+        const counterModeButton = document.getElementById('counterMode');
+        const buttonModeButton = document.getElementById('buttonMode');
+        const resetModeButton = document.getElementById('resetMode');
+        const bodyEl = document.body;
+
+        // Установите свой PIN-код здесь
+        const correctPin = "8732"; // Замените на нужный четырёхзначный код
+
+        if (firebaseInitialized) {
+            onValue(counterRef, (snapshot) => {
+                if (!snapshot.exists()) {
+                    set(counterRef, 500)
+                        .then(() => console.log("Установлено начальное значение 500"))
+                        .catch((error) => console.error("Ошибка установки значения:", error));
+                } else {
+                    count = snapshot.val();
+                    mainCounterEl.textContent = count;
+                    buttonCounterEl.textContent = count; // Обновляем счётчик для кнопки
+                    updateUI();
+                    console.log("Счётчик загружен из Firebase:", count);
+                }
+            }, { onlyOnce: true });
+
+            onValue(counterRef, (snapshot) => {
+                count = snapshot.val() !== null ? snapshot.val() : 500;
+                mainCounterEl.textContent = count;
+                buttonCounterEl.textContent = count; // Обновляем счётчик для кнопки
+                updateUI();
+                console.log("Счётчик обновлён из Firebase:", count);
+            }, (error) => {
+                console.error("Ошибка чтения из Firebase:", error);
+            });
+        } else {
+            mainCounterEl.textContent = count;
+            buttonCounterEl.textContent = count; // Обновляем счётчик для кнопки
+            updateUI();
+            console.warn("Firebase не работает, используем локальный режим");
+        }
+
+        function decreaseCounter() {
+            console.log("Кнопка 'Забрать напиток' нажата, текущий count:", count);
+            if (count > 0) {
+                count--;
+                if (firebaseInitialized) {
+                    set(counterRef, count)
+                        .then(() => console.log("Счётчик уменьшен до:", count))
+                        .catch((error) => console.error("Ошибка записи в Firebase:", error));
+                } else {
+                    mainCounterEl.textContent = count;
+                    buttonCounterEl.textContent = count; // Обновляем счётчик для кнопки
+                    updateUI();
+                    console.log("Локально уменьшен до:", count);
+                }
+            }
+        }
+
+        function updateUI() {
+            console.log("Обновление UI, count:", count);
+            if (count === 0) {
+                messageEl.textContent = "Все напитки, к сожалению, уже раздали.";
+                buttonEl.disabled = true;
+            } else {
+                messageEl.textContent = "";
+                buttonEl.disabled = false;
+            }
+        }
+
+        function editCounter() {
+            const input = prompt("Введите новое значение счётчика:", count);
+            if (input === null) return;
+            if (!isNaN(input) && input !== "" && parseInt(input) >= 0) {
+                count = parseInt(input);
+                if (firebaseInitialized) {
+                    set(counterRef, count)
+                        .then(() => console.log("Счётчик отредактирован до:", count))
+                        .catch((error) => console.error("Ошибка записи в Firebase:", error));
+                } else {
+                    mainCounterEl.textContent = count;
+                    buttonCounterEl.textContent = count; // Обновляем счётчик для кнопки
+                    updateUI();
+                    console.log("Локально отредактирован до:", count);
+                }
+            } else {
+                console.log("Некорректный ввод, ничего не изменено");
+            }
+            editButtonEl.removeAttribute('open');
+        }
+
+        function setCounterMode() {
+            bodyEl.classList.remove('combined-mode');
+            buttonEl.classList.add('hidden');
+            buttonCounterEl.classList.add('hidden'); // Скрываем счётчик кнопки
+            mainCounterEl.classList.remove('hidden');
+            mainCounterEl.classList.add('expanded');
+            messageEl.classList.add('hidden');
+            isEditMode = false;
+            localStorage.setItem('mode', 'counter'); // Сохраняем режим
+            console.log("Переключено в режим счётчика");
+            editButtonEl.removeAttribute('open');
+        }
+
+        function setButtonMode() {
+            bodyEl.classList.remove('combined-mode');
+            mainCounterEl.classList.add('hidden');
+            buttonEl.classList.remove('hidden');
+            buttonEl.classList.add('full-button');
+            buttonCounterEl.classList.remove('hidden'); // Показываем счётчик кнопки
+            messageEl.classList.remove('hidden');
+            isEditMode = true;
+            localStorage.setItem('mode', 'button'); // Сохраняем режим
+            console.log("Переключено в режим кнопки");
+            editButtonEl.removeAttribute('open');
+        }
+
+        function resetToInitial() {
+            bodyEl.classList.add('combined-mode');
+            mainCounterEl.classList.remove('hidden', 'expanded');
+            buttonCounterEl.classList.add('hidden'); // Скрываем счётчик кнопки
+            buttonEl.classList.remove('hidden', 'full-button');
+            messageEl.classList.remove('hidden');
+            isEditMode = false;
+            localStorage.setItem('mode', 'combined'); // Сохраняем режим
+            console.log("Сброс в исходное состояние: счётчик + кнопка");
+            editButtonEl.removeAttribute('open');
+        }
+
+        // Запрос PIN-кода при клике на ED
+        editButtonEl.querySelector('summary').addEventListener('click', function(event) {
+            if (!editButtonEl.hasAttribute('open')) { // Проверяем, закрыто ли меню
+                const pin = prompt("Введите четырёхзначный PIN-код:");
+                if (pin === null || pin.length !== 4 || pin !== correctPin) {
+                    alert("Неверный PIN-код!");
+                    event.preventDefault(); // Предотвращаем открытие меню
+                }
+            }
+        });
+
+        // Закрытие меню при клике вне его
+        document.addEventListener('click', function(event) {
+            if (!editButtonEl.contains(event.target)) {
+                editButtonEl.removeAttribute('open');
+            }
+        });
+
+        // Восстановление сохранённого состояния
+        function restoreState() {
+            const savedMode = localStorage.getItem('mode');
+            if (savedMode === 'counter') {
+                setCounterMode();
+            } else if (savedMode === 'button') {
+                setButtonMode();
+            } else if (savedMode === 'combined') {
+                resetToInitial();
+            } else {
+                resetToInitial(); // По умолчанию, если нет сохранённого состояния
+            }
+        }
+
+        buttonEl.onclick = decreaseCounter;
+        editValueButton.onclick = editCounter;
+        counterModeButton.onclick = setCounterMode;
+        buttonModeButton.onclick = setButtonMode;
+        resetModeButton.onclick = resetToInitial;
+
+        // Инициализация: восстановление сохранённого состояния
+        restoreState();
+        updateUI();
+    </script>
+</body>
+</html>
